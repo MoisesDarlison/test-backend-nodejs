@@ -22,9 +22,11 @@ module.exports = {
     },
     async index(req, res) {
         try {
-            const products = await productModel.find();
+            const products = await productModel
+                .find()
+                .select('title').select('category');
+            return res.status(200).json({ products });
 
-            return res.status(200).json({ products })
         } catch (error) {
             return res.status(400).json({
                 message: error.message
@@ -32,15 +34,25 @@ module.exports = {
         }
     },
     async filter(req, res) {
-        const { product_id } = req.params;
+        const { title, category } = req.query;
 
         try {
-            const productFilter = await productModel.findOne(
+            const titleFilter = await productModel.findOne(
                 {
-                    _id: product_id
+                    title
                 });
 
-            return res.status(200).json({ productFilter })
+            const categoryFilter = await productModel.find(
+                {
+                    category
+                });
+            if (titleFilter) {
+                return res.status(200).json({ titleFilter })
+            }
+            if (categoryFilter) {
+                return res.status(200).json({ categoryFilter })
+            }
+            return res.status(400).json({ message: "Not Found" })
 
         } catch (error) {
             return res.status(400).json({
@@ -49,12 +61,16 @@ module.exports = {
         }
     },
     async destroy(req, res) {
-        const { product_id } = req.params;
+        const { title } = req.params;
 
         try {
-            const productDdelete = await productModel.findById(product_id)
+            const productDelete = await productModel.findOne({ title })
 
-            await productModel.deleteOne({ _id: product_id })
+            if (!productDelete) {
+                return res.status(400).json({ message: "product not found" })
+            }
+
+            await productModel.deleteOne({ _id: productDelete._id })
 
             return res.status(200).json({ Message: "Delete Sucess" })
         } catch (error) {
@@ -64,25 +80,17 @@ module.exports = {
         }
     },
     async upadate(req, res) {
-        const { product_id } = req.params;
         const { title, description, price, category } = req.body;
 
         try {
-            const isValid = await mongoose.Types.ObjectId.isValid(product_id)
-            if (!isValid) {
-                throw { type: 'ValidationError', status: 404, message: 'Id invalid' };
-            }
+            const productedited = await productModel.findOne({ title })
 
-          
-
-
-            const productAlreadyExists = await productModel.findOne({ _id: product_id });
-            if (!productAlreadyExists) {
-                throw { type: 'ValidationError', status: 404, message: 'Product not found'};
-            }
+            if (!productedited) {
+                return res.status(400).json({ message: "Product not found" })
+            }    
 
             await productModel.updateOne(
-                { _id: `${product_id}` }, {
+                { _id: `${productedited._id}` }, {
                 $set: {
                     title,
                     description,
